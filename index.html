@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Praktykant w IT: Przetrwać okres próbny</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Pasek zadań / Górny pasek systemu */
+        #top-bar {
+            height: 48px;
+            background: #1e293b;
+            border-bottom: 2px solid #334155;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+        .stats-container {
+            display: flex;
+            gap: 20px;
+        }
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .bar-bg {
+            width: 100px;
+            height: 12px;
+            background: #334155;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .bar-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        #focus-bar { background: #3b82f6; }
+        #energy-bar { background: #eab308; }
+        #rep-bar { background: #22c55e; }
+
+        /* Pulpit */
+        #desktop {
+            flex: 1;
+            padding: 20px;
+            position: relative;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            display: grid;
+            grid-template-columns: repeat(auto-fill, 100px);
+            grid-template-rows: repeat(auto-fill, 100px);
+            gap: 15px;
+        }
+
+        .icon {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 90px;
+            height: 90px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            padding: 5px;
+        }
+        .icon:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .icon-symbol {
+            font-size: 32px;
+            margin-bottom: 5px;
+        }
+        .icon-title {
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        /* Window Style */
+        .window {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 550px;
+            max-width: 90vw;
+            background: #1e293b;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            display: none;
+            flex-direction: column;
+            z-index: 10;
+        }
+        .window.active {
+            display: flex;
+        }
+        .window-header {
+            background: #0f172a;
+            padding: 10px 15px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .close-btn {
+            background: #ef4444;
+            border: none;
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            line-height: 15px;
+            font-size: 12px;
+        }
+        .window-body {
+            padding: 20px;
+            min-height: 250px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Elementy aplikacji */
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 10px;
+        }
+        .btn:hover { background: #2563eb; }
+        .btn:disabled { background: #475569; cursor: not-allowed; }
+
+        .code-block {
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            color: #38bdf8;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+
+        .option-btn {
+            background: #334155;
+            color: white;
+            border: 1px solid #475569;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: left;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        .option-btn:hover { background: #475569; }
+
+        /* Modal / Game Over / Win */
+        #overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            flex-direction: column;
+        }
+        .modal-card {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 450px;
+            border: 1px solid #475569;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Pasek górny z zasobami -->
+    <div id="top-bar">
+        <div class="stat-item">📅 Dzień: <span id="day-counter">1</span>/14</div>
+        <div class="stats-container">
+            <div class="stat-item">
+                🧠 Skupienie:
+                <div class="bar-bg"><div id="focus-bar" class="bar-fill" style="width: 100%;"></div></div>
+            </div>
+            <div class="stat-item">
+                ☕ Energia:
+                <div class="bar-bg"><div id="energy-bar" class="bar-fill" style="width: 100%;"></div></div>
+            </div>
+            <div class="stat-item">
+                ⭐ Reputacja:
+                <div class="bar-bg"><div id="rep-bar" class="bar-fill" style="width: 50%;"></div></div>
+            </div>
+        </div>
+        <button class="btn" style="padding: 5px 10px; font-size: 12px;" onclick="endDay()">Zakończ Dzień 🌙</button>
+    </div>
+
+    <!-- Pulpit z ikonami -->
+    <div id="desktop">
+        <div class="icon" onclick="openWindow('window-standup')">
+            <div class="icon-symbol">💬</div>
+            <div class="icon-title">Slack / Standup</div>
+        </div>
+        <div class="icon" onclick="openWindow('window-bugs')">
+            <div class="icon-symbol">🐛</div>
+            <div class="icon-title">Debuger</div>
+        </div>
+        <div class="icon" onclick="openWindow('window-tickets')">
+            <div class="icon-symbol">📋</div>
+            <div class="icon-title">Jira / Zgłoszenia</div>
+        </div>
+        <div class="icon" onclick="drinkCoffee()">
+            <div class="icon-symbol">☕</div>
+            <div class="icon-title">Ekspres do kawy</div>
+        </div>
+    </div>
+
+    <!-- Okno 1: Standup -->
+    <div id="window-standup" class="window">
+        <div class="window-header">
+            <span>Daily Standup — Dzisiejszy wpis</span>
+            <button class="close-btn" onclick="closeWindow('window-standup')">✕</button>
+        </div>
+        <div class="window-body">
+            <p id="standup-prompt">Szef pyta: "Co zrobiłeś wczoraj i jakie masz plany na dziś?"</p>
+            <div id="standup-options"></div>
+        </div>
+    </div>
+
+    <!-- Okno 2: Bug Fixer -->
+    <div id="window-bugs" class="window">
+        <div class="window-header">
+            <span>System Debugowania</span>
+            <button class="close-btn" onclick="closeWindow('window-bugs')">✕</button>
+        </div>
+        <div class="window-body">
+            <div>
+                <p id="bug-desc">Znajdź poprawną linijkę kodu, aby naprawić błąd w produkcji:</p>
+                <div id="bug-code" class="code-block"></div>
+            </div>
+            <div id="bug-options"></div>
+        </div>
+    </div>
+
+    <!-- Okno 3: Jira Tickets -->
+    <div id="window-tickets" class="window">
+        <div class="window-header">
+            <span>Jira — Triage Zgłoszeń</span>
+            <button class="close-btn" onclick="closeWindow('window-tickets')">✕</button>
+        </div>
+        <div class="window-body">
+            <div>
+                <p>Otrzymałeś nowe zgłoszenie. Przypisz odpowiedni priorytet:</p>
+                <div id="ticket-text" class="code-block" style="color: #fca5a5;"></div>
+            </div>
+            <div id="ticket-options">
+                <button class="option-btn" onclick="resolveTicket('CRITICAL')">🔥 Krytyczny (Blocker)</button>
+                <button class="option-btn" onclick="resolveTicket('NORMAL')">📂 Normalny</button>
+                <button class="option-btn" onclick="resolveTicket('LOW')">☕ Niski (Na nigdy)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Końca Gry / Dnia -->
+    <div id="overlay">
+        <div class="modal-card">
+            <h2 id="modal-title">Witaj na praktykach!</h2>
+            <p id="modal-desc">Twój cel: Przepracować 14 dni, dbać o zasoby i utrzymać dodatnią reputację u szefa. Powodzenia!</p>
+            <button class="btn" id="modal-btn" onclick="closeModal()">Rozpocznij pracę</button>
+        </div>
+    </div>
+
+    <script>
+        // Stan gry
+        let day = 1;
+        let focus = 100;
+        let energy = 100;
+        let rep = 50;
+        let coffeeDrunkToday = 0;
+
+        // Baza zadań do Standupu
+        const standupData = [
+            {
+                q: "Szef patrzy na Ciebie wyczekująco: 'I jak tam Twój moduł logowania?'",
+                options: [
+                    { t: "Kod jest gotowy, robię refaktor i piszę testy unitowe.", focus: -10, rep: 10, text: "Szef kiwa głową z uznaniem." },
+                    { t: "Coś tam klikałem, ale StackOverflow dzisiaj nie działał...", focus: 0, rep: -15, text: "Zapadła niezręczna cisza..." },
+                    { t: "Oglądałem prezentację o nowym AI do robienia kawy.", focus: 0, rep: -5, text: "Zespół się śmieje, ale szef marszczy brwi." }
+                ]
+            },
+            {
+                q: "Junior Dev pyta: 'Pomoże mi ktoś ze skomplikowanym query w SQL?'",
+                options: [
+                    { t: "Mogę usiąść z Tobą na 15 minut i spróbować pomóc.", focus: -20, rep: 15, text: "Podejście zespołowe! Reputacja w górę." },
+                    { t: "Użyj 'SELECT * FROM tablica' i zobacz co będzie.", focus: -5, rep: -10, text: "Baza danych padła na 10 minut..." },
+                    { t: "Udaję, że nagle dostałem pilnego maila od klienta.", focus: 0, rep: 0, text: "Udało się uniknąć pracy." }
+                ]
+            },
+            {
+                q: "Client Success Manager wchodzi do pokoju: 'Klient chce zmienić kolor przycisku na różowy, TERAZ!'",
+                options: [
+                    { t: "Stwórzmy zgłoszenie w Jierze, wycenimy to i wrzucimy w sprint.", focus: -10, rep: 10, text: "Brzmisz jak prawdziwy senior korpo-it!" },
+                    { t: "Robię to od razu w kodzie na produkcji!", focus: -15, rep: -20, text: "Zepsułeś serwer produkcyjny przy okazji!" }
+                ]
+            }
+        ];
+
+        // Baza bugów
+        const bugData = [
+            {
+                code: "function calculateTax(amount) {\n   return amount * 'dwadzieścia';\n}",
+                correct: 1,
+                options: [
+                    "return amount * 0.20;",
+                    "return amount * 'dwadzieścia';",
+                    "return amount * null;"
+                ]
+            },
+            {
+                code: "let users = ['Anna', 'Piotr'];\nif (users.length = 0) {\n   console.log('Brak użytkowników');\n}",
+                correct: 0,
+                options: [
+                    "if (users.length === 0)",
+                    "if (users.length = 0)",
+                    "if (users == 'brak')"
+                ]
+            },
+            {
+                code: "const isWeekend = true;\nif (isWeekend) {\n   goToWork();\n}",
+                correct: 2,
+                options: [
+                    "if (!isWeekend) { goToWork(); }",
+                    "if (isWeekend) { playGames(); }",
+                    "Obie odpowiedzi powyżej są poprawne logicznie."
+                ]
+            }
+        ];
+
+        // Baza ticketów
+        const ticketData = [
+            { text: "PRZYCISK 'KUP TERAZ' NIE DZIAŁA NA PRODUKCJI! KLIENTOM ZNIKA ZAMÓWIENIE!", correct: 'CRITICAL' },
+            { text: "Literówka w regulaminie w sekcji 14.b (zamienione 'oraz' na 'ora')", correct: 'LOW' },
+            { text: "Aplikacja ładuje się o 1.5 sekundy wolniej w przeglądarce Safari", correct: 'NORMAL' },
+            { text: "Pojawił się błąd 500 przy próbie logowania dla 80% użytkowników!", correct: 'CRITICAL' }
+        ];
+
+        let currentBug = 0;
+        let currentTicket = 0;
+
+        function updateUI() {
+            document.getElementById('day-counter').innerText = day;
+            document.getElementById('focus-bar').style.width = Math.max(0, focus) + '%';
+            document.getElementById('energy-bar').style.width = Math.max(0, energy) + '%';
+            document.getElementById('rep-bar').style.width = Math.max(0, rep) + '%';
+
+            checkGameOver();
+        }
+
+        function openWindow(id) {
+            document.getElementById(id).classList.add('active');
+            if (id === 'window-standup') setupStandup();
+            if (id === 'window-bugs') setupBug();
+            if (id === 'window-tickets') setupTicket();
+        }
+
+        function closeWindow(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function showModal(title, desc, btnText = "Kontynuuj") {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-desc').innerText = desc;
+            document.getElementById('modal-btn').innerText = btnText;
+            document.getElementById('overlay').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('overlay').style.display = 'none';
+        }
+
+        // --- MECHANIKA 1: STANDUP ---
+        function setupStandup() {
+            const data = standupData[Math.floor(Math.random() * standupData.length)];
+            document.getElementById('standup-prompt').innerText = data.q;
+            const container = document.getElementById('standup-options');
+            container.innerHTML = '';
+
+            data.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt.t;
+                btn.onclick = () => {
+                    focus += opt.focus;
+                    rep += opt.rep;
+                    updateUI();
+                    showModal("Wynik rozmowy", opt.text);
+                    closeWindow('window-standup');
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        // --- MECHANIKA 2: BUG FIXER ---
+        function setupBug() {
+            currentBug = Math.floor(Math.random() * bugData.length);
+            const b = bugData[currentBug];
+            document.getElementById('bug-code').innerText = b.code;
+            const container = document.getElementById('bug-options');
+            container.innerHTML = '';
+
+            b.options.forEach((optText, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = optText;
+                btn.onclick = () => {
+                    if (energy < 15) {
+                        showModal("Brak energii!", "Jesteś zbyt zmęczony na myślenie. Napij się kawy!");
+                        return;
+                    }
+                    energy -= 15;
+                    focus -= 10;
+                    if (index === b.correct) {
+                        rep += 10;
+                        showModal("Sukces!", "Bug naprawiony! Szef uśmiecha się z daleka. (+10 Reputacji)");
+                    } else {
+                        rep -= 10;
+                        showModal("Błąd!", "Twój 'fix' zepsuł jeszcze więcej kodu. (-10 Reputacji)");
+                    }
+                    updateUI();
+                    closeWindow('window-bugs');
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        // --- MECHANIKA 3: JIRA TICKETS ---
+        function setupTicket() {
+            currentTicket = Math.floor(Math.random() * ticketData.length);
+            document.getElementById('ticket-text').innerText = ticketData[currentTicket].text;
+        }
+
+        function resolveTicket(priority) {
+            if (focus < 10) {
+                showModal("Brak skupienia!", "Nie możesz się skoncentrować. Zakończ dzień lub odpocznij.");
+                return;
+            }
+            focus -= 10;
+            const t = ticketData[currentTicket];
+            if (priority === t.correct) {
+                rep += 10;
+                showModal("Dobry triage!", "Poprawnie przypisałeś priorytet zgłoszenia. (+10 Reputacji)");
+            } else {
+                rep -= 10;
+                showModal("Pomyłka!", "Zespół stracił czas przez złą klasyfikację. (-10 Reputacji)");
+            }
+            updateUI();
+            closeWindow('window-tickets');
+        }
+
+        // --- DODATKOWE: KAWA ---
+        function drinkCoffee() {
+            if (coffeeDrunkToday >= 3) {
+                showModal("Przedawkowanie!", "Twój żołądek mówi 'NIE'. Serce bije za szybko. Nie możesz pić więcej kawy dzisiaj.");
+                return;
+            }
+            coffeeDrunkToday++;
+            energy = Math.min(100, energy + 30);
+            focus = Math.max(0, focus - 5);
+            updateUI();
+            showModal("Kawa z ekspresu ☕", `Wypijasz pyszną kawę z mlekiem owsianym. Energia +30, ale skupienie lekko spada! (Wypito dzisiaj: ${coffeeDrunkToday}/3)`);
+        }
+
+        // --- WARUNKI I LOGIKA DNIA ---
+        function endDay() {
+            day++;
+            focus = 100;
+            energy = 100;
+            coffeeDrunkToday = 0;
+
+            if (day > 14) {
+                if (rep >= 70) {
+                    showModal("SUKCES! 🎉", "Przetrwałeś 14 dni! Szef wręcza Ci umowę o pracę na czas nieokreślony i firmową bluzę! Zostałeś Senior Internem!", "Zagraj ponownie");
+                    document.getElementById('modal-btn').onclick = () => location.reload();
+                } else {
+                    showModal("KONIEC UMOWY 📄", "Przetrwałeś 14 dni, ale Twoja reputacja była zbyt niska. Szef powiedział: 'Szukamy kogoś z większym entuzjazmem'.", "Zagraj ponownie");
+                    document.getElementById('modal-btn').onclick = () => location.reload();
+                }
+            } else {
+                showModal(`Dzień ${day}`, "Rozpoczynasz nowy dzień w pracy. Zasoby odnowione. Sprawdź nowe zadania na pulpicie!");
+            }
+            updateUI();
+        }
+
+        function checkGameOver() {
+            if (rep <= 0) {
+                showModal("ZOSTAŁEŚ ZWOLNIONY! 🚫", "Twoja reputacja spadła do zera. HR prosi o zwrot laptopa i przepustki do biura.", "Zagraj ponownie");
+                document.getElementById('modal-btn').onclick = () => location.reload();
+            }
+        }
+
+        // Inicjalizacja
+        updateUI();
+    </script>
+</body>
+</html>
