@@ -1,0 +1,818 @@
+<!DOCTYPE html><html lang="pl"><head> 
+    <meta charset="UTF-8"> 
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+    <title>Praktykant w IT: Przetrwać okres próbny V3</title> 
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style> 
+        * { box-sizing: border-box; } 
+        body { 
+            margin: 0; padding: 0; 
+            font-family: 'Inter', Tahoma, sans-serif; 
+            background: #0f172a; color: #f8fafc; 
+            height: 100vh; overflow: hidden; 
+            display: flex; flex-direction: column; 
+        } 
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+
+        /* Pasek zadań (Glassmorphism) */ 
+        #top-bar { 
+            height: 56px; 
+            background: rgba(15, 23, 42, 0.7); 
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255,255,255,0.1); 
+            display: flex; align-items: center; justify-content: space-between; 
+            padding: 0 24px; z-index: 5; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        } 
+        .stats-container { display: flex; gap: 24px; } 
+        .stat-item { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #cbd5e1; } 
+        .bar-bg { width: 120px; height: 10px; background: rgba(0,0,0,0.4); border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); box-shadow: inset 0 1px 3px rgba(0,0,0,0.5); } 
+        .bar-fill { height: 100%; transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s; border-radius: 10px; } 
+        
+        #focus-bar { background: linear-gradient(90deg, #2563eb, #3b82f6); box-shadow: 0 0 10px rgba(59, 130, 246, 0.5); } 
+        #energy-bar { background: linear-gradient(90deg, #ca8a04, #eab308); box-shadow: 0 0 10px rgba(234, 179, 8, 0.5); } 
+        #rep-bar { background: linear-gradient(90deg, #16a34a, #22c55e); box-shadow: 0 0 10px rgba(34, 197, 94, 0.5); } 
+
+        /* Pulpit */ 
+        #desktop { 
+            flex: 1; padding: 30px; position: relative; 
+            background: radial-gradient(circle at top right, #1e1b4b 0%, #0f172a 60%, #020617 100%); 
+            display: grid; grid-template-columns: repeat(auto-fill, 110px); 
+            grid-template-rows: repeat(auto-fill, 110px); gap: 20px; 
+        } 
+
+        .icon { 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            width: 100px; height: 100px; border-radius: 16px; cursor: pointer; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); text-align: center; padding: 10px; 
+            background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255,255,255,0.05);
+            backdrop-filter: blur(4px);
+        } 
+        .icon:hover { 
+            background: rgba(255, 255, 255, 0.1); 
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.15);
+        } 
+        .icon-symbol { font-size: 38px; margin-bottom: 8px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)); } 
+        .icon-title { font-size: 12px; font-weight: 500; text-shadow: 0 2px 4px rgba(0,0,0,0.8); line-height: 1.2; } 
+
+        /* Window Style (Glassmorphism) */ 
+        .window { 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.95); 
+            width: 600px; max-width: 90vw; max-height: 85vh; 
+            background: rgba(15, 23, 42, 0.85); 
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px; 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(0,0,0,0.5); 
+            display: none; flex-direction: column; z-index: 10; overflow: hidden; 
+            opacity: 0;
+        } 
+        
+        @keyframes windowOpen { 
+            from { opacity: 0; transform: translate(-50%, -48%) scale(0.95); } 
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1); } 
+        }
+
+        .window.active { display: flex; animation: windowOpen 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; } 
+        
+        .window-header { 
+            background: rgba(0,0,0,0.3); padding: 12px 20px; 
+            display: flex; justify-content: space-between; 
+            align-items: center; font-weight: 600; font-size: 14px; 
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            letter-spacing: 0.5px;
+        } 
+        .close-btn { 
+            background: #ef4444; border: none; color: transparent; width: 14px; height: 14px; 
+            border-radius: 50%; cursor: pointer; transition: 0.2s; 
+            display: flex; align-items: center; justify-content: center; 
+            position: relative;
+        } 
+        .close-btn:hover { background: #f87171; color: #7f1d1d; } 
+        .close-btn::before, .close-btn::after {
+            content: ''; position: absolute; width: 8px; height: 2px; background: currentColor;
+            opacity: 0; transition: 0.2s;
+        }
+        .close-btn:hover::before { transform: rotate(45deg); opacity: 1; }
+        .close-btn:hover::after { transform: rotate(-45deg); opacity: 1; }
+         
+        .window-body { 
+            padding: 24px; min-height: 200px; display: flex; flex-direction: column; 
+            justify-content: space-between; overflow-y: auto; gap: 20px;
+        } 
+        .window-body p { margin: 0 0 10px 0; font-size: 15px; line-height: 1.5; color: #e2e8f0; }
+
+        /* Elementy aplikacji */ 
+        .btn { 
+            background: linear-gradient(180deg, #3b82f6, #2563eb); color: white; border: none; padding: 12px 20px; 
+            border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; 
+            font-family: 'Inter', sans-serif; font-size: 14px;
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2), inset 0 1px 0 rgba(255,255,255,0.1);
+        } 
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(37, 99, 235, 0.3), inset 0 1px 0 rgba(255,255,255,0.1); background: linear-gradient(180deg, #4f46e5, #3730a3); } 
+        .btn:active { transform: translateY(0); }
+        
+        .btn-warning { background: linear-gradient(180deg, #f59e0b, #d97706); box-shadow: 0 4px 6px rgba(217, 119, 6, 0.2), inset 0 1px 0 rgba(255,255,255,0.2); color: #fff;}
+        .btn-warning:hover { background: linear-gradient(180deg, #fbbf24, #f59e0b); box-shadow: 0 6px 12px rgba(217, 119, 6, 0.3); }
+
+        .code-block { 
+            background: #020617; padding: 16px; border-radius: 8px; 
+            font-family: 'Fira Code', Courier, monospace; font-size: 13px; 
+            color: #38bdf8; white-space: pre-wrap; border: 1px solid rgba(255,255,255,0.1); 
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); line-height: 1.6;
+        } 
+
+        .option-btn { 
+            background: rgba(255,255,255,0.05); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.1); 
+            padding: 14px 16px; margin: 6px 0; border-radius: 8px; cursor: pointer; text-align: left; 
+            width: 100%; transition: all 0.2s; font-size: 14px; font-family: 'Inter', sans-serif;
+            position: relative; overflow: hidden;
+        } 
+        .option-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.3); transform: translateX(4px); } 
+
+        /* Modal / Game Over / Win */ 
+        #overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); display: flex; align-items: center; 
+            justify-content: center; z-index: 100; flex-direction: column; opacity: 1; transition: 0.3s;
+        } 
+        .modal-card { 
+            background: #1e293b; padding: 40px; border-radius: 16px; text-align: center; 
+            max-width: 450px; width: 90%; border: 1px solid rgba(255,255,255,0.1); 
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            animation: windowOpen 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        } 
+        .modal-card h2 { margin-top: 0; font-size: 24px; color: #f8fafc; }
+        .modal-card p { font-size: 15px; color: #cbd5e1; line-height: 1.6; margin-bottom: 24px; }
+
+        /* Odświeżona oprawa gry */
+        :root { color-scheme: dark; --surface: rgba(15, 23, 42, .82); --line: rgba(148, 163, 184, .16); --muted: #94a3b8; }
+        body { min-height: 100vh; background: #080e1b; }
+        body { min-height: 100dvh; }
+        #top-bar { min-height: 78px; height: auto; gap: 24px; padding: 12px 28px; background: rgba(8, 14, 27, .88); border-bottom-color: rgba(148,163,184,.15); }
+        #top-bar::before { content: '▣  PRAKTYKANT / IT'; color: #e2e8f0; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; white-space: nowrap; }
+        .stats-container { flex: 1; justify-content: center; gap: clamp(12px, 2.4vw, 34px); }
+        .stat-item { font-size: 10px; gap: 9px; letter-spacing: .7px; color: #b8c5d9; }
+        .bar-bg { width: clamp(58px, 8vw, 112px); height: 7px; border: 0; background: rgba(148,163,184,.18); box-shadow: none; }
+        .stat-value { min-width: 2.5em; color: #e2e8f0; font-size: 10px; font-variant-numeric: tabular-nums; }
+        #top-bar > .stat-item { text-transform: none; font-size: 13px; padding: 10px 14px; background: rgba(59,130,246,.1); border: 1px solid rgba(96,165,250,.18); border-radius: 12px; white-space: nowrap; }
+        #top-bar > .btn { white-space: nowrap; border-radius: 10px; padding: 11px 16px !important; font-size: 12px !important; letter-spacing: .2px; }
+        #top-bar > .achievements-tab { background: rgba(30,41,59,.78); border: 1px solid rgba(148,163,184,.2); box-shadow: none; }
+        #top-bar > .achievements-tab:hover { background: rgba(51,65,85,.9); }
+        #desktop { isolation: isolate; padding: 36px; gap: 16px; grid-template-columns: repeat(auto-fill, 112px); grid-template-rows: none; grid-auto-rows: 112px; background: radial-gradient(ellipse at 78% 12%, rgba(59,130,246,.17), transparent 35%), radial-gradient(ellipse at 8% 88%, rgba(20,184,166,.11), transparent 34%), linear-gradient(145deg,#101a2c,#0a1020 72%); overflow: auto; }
+        #desktop::before { content: 'TWOJE BIURKO'; position: absolute; right: 38px; top: 36px; color: rgba(226,232,240,.8); font-size: 11px; font-weight: 800; letter-spacing: 2px; }
+        #desktop::after { content: '14 dni, żeby pokazać na co Cię stać. Wybierz aplikację i zadbaj o swoje zasoby.'; position: absolute; right: 38px; top: 62px; width: min(340px, 42vw); color: #94a3b8; font-size: 13px; line-height: 1.6; }
+        .icon { width: 104px; height: 104px; border-radius: 20px; gap: 1px; background: linear-gradient(150deg,rgba(30,41,59,.76),rgba(15,23,42,.5)); border: 1px solid rgba(148,163,184,.13); box-shadow: 0 8px 24px rgba(0,0,0,.13); }
+        .icon:hover { background: linear-gradient(150deg,rgba(51,65,85,.92),rgba(30,41,59,.82)); border-color: rgba(125,211,252,.4); transform: translateY(-4px); box-shadow: 0 14px 28px rgba(0,0,0,.28),0 0 24px rgba(56,189,248,.08); }
+        .icon-symbol { width: 54px; height: 50px; display: grid; place-items: center; margin-bottom: 5px; font-size: 32px; filter: drop-shadow(0 5px 8px rgba(0,0,0,.3)); }
+        .icon-title { color: #dbe6f5; font-size: 11px; line-height: 1.35; }
+        .window { width: min(640px, calc(100vw - 32px)); max-height: min(82vh, 760px); background: rgba(13,21,37,.96); border: 1px solid rgba(148,163,184,.2); border-radius: 18px; box-shadow: 0 30px 90px rgba(0,0,0,.65),0 0 0 1px rgba(2,6,23,.7); }
+        .window-header { padding: 15px 20px; background: rgba(30,41,59,.72); color: #dbeafe; }
+        .window-body { padding: clamp(18px,4vw,28px); gap: 16px; }
+        .window-body p { color: #cbd5e1; line-height: 1.7; }
+        .close-btn { width: 28px; height: 28px; color: white; }
+        .close-btn::before,.close-btn::after { opacity: 1; }
+        .close-btn:hover { background: #f87171; color: #fff; }
+        .btn,.option-btn { border-radius: 11px; }
+        .option-btn { padding: 14px 16px; background: rgba(30,41,59,.55); border-color: rgba(148,163,184,.16); line-height: 1.5; }
+        .option-btn:hover { background: rgba(51,65,85,.65); border-color: rgba(125,211,252,.38); }
+        .code-block { border-radius: 12px; border-color: rgba(56,189,248,.16); background: #080e1a; }
+        #overlay { padding: 20px; background: rgba(2,6,23,.76); }
+        .modal-card { padding: clamp(26px,5vw,42px); border-radius: 22px; background: linear-gradient(145deg,#1e293b,#111b2d); border-color: rgba(148,163,184,.2); }
+        .modal-card h2 { letter-spacing: -.5px; }
+        .modal-card p { color: #b8c5d9; }
+        button:focus-visible,.icon:focus-visible { outline: 3px solid #7dd3fc; outline-offset: 3px; }
+        @media (max-width: 820px) {
+            #top-bar { flex-wrap: wrap; gap: 10px 14px; padding: 12px 16px; }
+            #top-bar::before { flex: 1; }
+            #top-bar > .stat-item { order: 0; }
+            .stats-container { order: 2; flex-basis: 100%; justify-content: space-between; gap: 8px; }
+            .stat-item { gap: 6px; font-size: 9px; }
+            #desktop { padding: 24px; grid-template-columns: repeat(auto-fill, 96px); grid-auto-rows: 100px; gap: 10px; }
+            .icon { width: 92px; height: 94px; }
+            #desktop::before,#desktop::after { display: none; }
+        }
+        @media (max-width: 420px) {
+            #top-bar { gap: 8px; padding: 10px; }
+            #top-bar::before { font-size: 10px; }
+            #top-bar > .stat-item { padding: 8px 9px; font-size: 11px; }
+            #top-bar > .btn { padding: 9px 10px !important; font-size: 10px !important; }
+            .stat-item { flex-wrap: wrap; justify-content: center; text-align: center; }
+            .bar-bg { width: 54px; }
+            #desktop { padding: 18px 12px; grid-template-columns: repeat(3, minmax(82px, 1fr)); grid-auto-rows: 94px; justify-items: center; }
+            .icon { width: 82px; height: 88px; padding: 6px; }
+            .icon-symbol { font-size: 28px; height: 40px; }
+            .icon-title { font-size: 10px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *,*::before,*::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+        }
+        .achievement-summary { color: #94a3b8; font-size: 13px; margin: 0 0 4px; }
+        .achievement-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 12px; }
+        .achievement-card { padding: 16px; border-radius: 14px; border: 1px solid rgba(148,163,184,.16); background: rgba(30,41,59,.5); }
+        .achievement-card.unlocked { border-color: rgba(250,204,21,.38); background: linear-gradient(145deg,rgba(113,63,18,.22),rgba(30,41,59,.56)); }
+        .achievement-card h3 { margin: 0 0 6px; font-size: 14px; color: #e2e8f0; }
+        .achievement-card p { margin: 0; color: #94a3b8; font-size: 12px; line-height: 1.5; }
+        .achievement-status { display: block; margin-top: 12px; color: #64748b; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+        .achievement-card.unlocked .achievement-status { color: #facc15; }
+        .icon { user-select: none; }
+        .icon:focus-visible { outline: 3px solid #7dd3fc; outline-offset: 4px; }
+        .window[aria-hidden="true"] { pointer-events: none; }
+        .btn:disabled,.option-btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+        @media (max-height: 620px) { #top-bar { min-height: 62px; padding-block: 8px; } .window { max-height: 88vh; } .window-body { min-height: 0; } }
+    </style></head><body> 
+
+    <!-- Pasek górny z zasobami --> 
+    <div id="top-bar"> 
+        <div class="stat-item" style="color: #fff;">📅 Dzień: <span id="day-counter" style="color:#60a5fa; font-weight:700;">1</span>/14</div> 
+        <div class="stats-container"> 
+            <div class="stat-item" title="Skupienie: Potrzebne do trudnych zadań"> 
+                🧠 Skupienie: 
+                <div class="bar-bg"><div id="focus-bar" class="bar-fill" style="width: 100%;"></div></div><span id="focus-value" class="stat-value">100%</span> 
+            </div> 
+            <div class="stat-item" title="Energia: Spada przy każdej akcji"> 
+                ☕ Energia: 
+                <div class="bar-bg"><div id="energy-bar" class="bar-fill" style="width: 100%;"></div></div><span id="energy-value" class="stat-value">100%</span> 
+            </div> 
+            <div class="stat-item" title="Reputacja: Utrzymaj >70% by wygrać"> 
+                ⭐ Reputacja: 
+                <div class="bar-bg"><div id="rep-bar" class="bar-fill" style="width: 50%;"></div></div><span id="rep-value" class="stat-value">50%</span> 
+            </div> 
+        </div> 
+        <button class="btn achievements-tab" onclick="openWindow('window-achievements')">🏆 Osiągnięcia</button>
+        <button class="btn btn-warning" style="padding: 8px 16px; font-size: 13px;" onclick="endDay()">Zakończ Dzień 🌙</button> 
+    </div> 
+
+    <!-- Pulpit z ikonami --> 
+    <div id="desktop"> 
+        <div class="icon" role="button" tabindex="0" onclick="openWindow('window-standup')"> 
+            <div class="icon-symbol">💬</div> 
+            <div class="icon-title">Slack<br>(Standup)</div> 
+        </div> 
+        <div class="icon" role="button" tabindex="0" onclick="openWindow('window-bugs')"> 
+            <div class="icon-symbol">🐛</div> 
+            <div class="icon-title">VS Code<br>(Debug)</div> 
+        </div> 
+        <div class="icon" role="button" tabindex="0" onclick="openWindow('window-github')"> 
+            <div class="icon-symbol">🐙</div> 
+            <div class="icon-title">GitHub<br>(Code Review)</div> 
+        </div>
+        <div class="icon" role="button" tabindex="0" onclick="openWindow('window-tickets')"> 
+            <div class="icon-symbol">📋</div> 
+            <div class="icon-title">Jira<br>(Zgłoszenia)</div> 
+        </div>
+        <div class="icon" role="button" tabindex="0" onclick="openWindow('window-stackoverflow')"> 
+            <div class="icon-symbol">🌐</div> 
+            <div class="icon-title">StackOverflow</div> 
+        </div> 
+        <div class="icon" role="button" tabindex="0" onclick="drinkCoffee()"> 
+            <div class="icon-symbol">☕</div> 
+            <div class="icon-title">Ekspres<br>do kawy</div> 
+        </div>
+        <div class="icon" role="button" tabindex="0" onclick="listenToMusic()"> 
+            <div class="icon-symbol">🎧</div> 
+            <div class="icon-title">Słuchawki<br>(Lofi Radio)</div> 
+        </div>
+        <div class="icon" role="button" tabindex="0" onclick="playFoosball()"> 
+            <div class="icon-symbol">⚽</div> 
+            <div class="icon-title">Piłkarzyki</div> 
+        </div> 
+        <div class="icon" role="button" tabindex="0" onclick="helpCoworker()">
+            <div class="icon-symbol">🤝</div>
+            <div class="icon-title">Pomoc<br>koledze</div>
+        </div>
+        <div class="icon" role="button" tabindex="0" onclick="openWindow('window-achievements')">
+            <div class="icon-symbol">🏆</div>
+            <div class="icon-title">Osiągnięcia</div>
+        </div>
+    </div> 
+
+    <!-- Okno 1: Standup --> 
+    <div id="window-standup" class="window"> 
+        <div class="window-header"> 
+            <span>#daily-standup</span> 
+            <button class="close-btn" onclick="closeWindow('window-standup')"></button> 
+        </div> 
+        <div class="window-body"> 
+            <p id="standup-prompt" style="font-weight: 500;">Wczytywanie wiadomości...</p> 
+            <div id="standup-options"></div> 
+        </div> 
+    </div> 
+
+    <!-- Okno 2: Bug Fixer --> 
+    <div id="window-bugs" class="window"> 
+        <div class="window-header"> 
+            <span>VS Code - Produkcja</span> 
+            <button class="close-btn" onclick="closeWindow('window-bugs')"></button> 
+        </div> 
+        <div class="window-body"> 
+            <div> 
+                <p id="bug-desc">Znajdź poprawną linijkę kodu, aby naprawić błąd:</p> 
+                <div id="bug-code" class="code-block"></div> 
+            </div> 
+            <div id="bug-options"></div> 
+        </div> 
+    </div> 
+    
+    <!-- Okno: GitHub (Nowe) --> 
+    <div id="window-github" class="window"> 
+        <div class="window-header"> 
+            <span>GitHub — Pull Requests</span> 
+            <button class="close-btn" onclick="closeWindow('window-github')"></button> 
+        </div> 
+        <div class="window-body"> 
+            <div> 
+                <p>Senior wygenerował ogromny Pull Request (52 pliki, +1430 linijek). Prosi Cię o szybkie Code Review.</p> 
+                <div class="code-block" style="color: #a78bfa;">// Fragment kodu:<br>function magicMath() {<br>  return (0.1 * 10 + 0.2 * 10) / 10 == 0.3;<br>}</div> 
+            </div> 
+            <div> 
+                <button class="option-btn" onclick="doCodeReview('approve')">🟢 Zatwierdź w ciemno (LGTM 👍) [-5 Skupienia, -10 Energii, ryzyko]</button> 
+                <button class="option-btn" onclick="doCodeReview('read')">🔍 Analizuj dokładnie (-25 Skupienia) [Bezpieczne]</button> 
+                <button class="option-btn" onclick="doCodeReview('reject')">🔴 Odrzuć z komentarzem (-15 Energii) [Szanse/Ryzyko]</button> 
+            </div> 
+        </div> 
+    </div> 
+
+    <!-- Okno 3: Jira Tickets --> 
+    <div id="window-tickets" class="window"> 
+        <div class="window-header"> 
+            <span>Jira — Triage Zgłoszeń</span> 
+            <button class="close-btn" onclick="closeWindow('window-tickets')"></button> 
+        </div> 
+        <div class="window-body"> 
+            <div> 
+                <p>Otrzymałeś nowe zgłoszenie. Przypisz odpowiedni priorytet:</p> 
+                <div id="ticket-text" class="code-block" style="color: #fca5a5; border-color: rgba(248, 113, 113, 0.2);"></div> 
+            </div> 
+            <div id="ticket-options"> 
+                <button class="option-btn" onclick="resolveTicket('CRITICAL')">🔥 Krytyczny (Blocker)</button> 
+                <button class="option-btn" onclick="resolveTicket('NORMAL')">📂 Normalny (Do zrobienia)</button> 
+                <button class="option-btn" onclick="resolveTicket('LOW')">☕ Niski (Backlog / Na kiedyś)</button> 
+            </div> 
+        </div> 
+    </div> 
+
+    <!-- Okno 4: StackOverflow --> 
+    <div id="window-stackoverflow" class="window"> 
+        <div class="window-header"> 
+            <span>Przeglądarka - StackOverflow</span> 
+            <button class="close-btn" onclick="closeWindow('window-stackoverflow')"></button> 
+        </div> 
+        <div class="window-body" style="text-align: center; justify-content: center;"> 
+            <div style="font-size: 56px; margin-bottom: 10px; text-shadow: 0 4px 10px rgba(0,0,0,0.5);">🔍</div>
+            <h3 style="margin-top:0; color:#f8fafc;">Utknąłeś na trudnym problemie?</h3>
+            <p style="color:#94a3b8;">Możesz poszukać gotowego rozwiązania w sieci. Kosztuje to <strong style="color:#f59e0b;">20 Energii</strong>, ale może odnowić Skupienie lub uratować zadanie. Uwaga: Możesz też trafić na trolle!</p>
+            <button class="btn" style="width: 100%; padding: 15px; margin-top: 10px;" onclick="searchWeb()">Szukaj rozwiązania (-20 Energii)</button> 
+        </div> 
+    </div> 
+
+    <div id="window-achievements" class="window">
+        <div class="window-header">
+            <span>🏆 Osiągnięcia praktykanta</span>
+            <button class="close-btn" aria-label="Zamknij osiągnięcia" onclick="closeWindow('window-achievements')"></button>
+        </div>
+        <div class="window-body">
+            <p class="achievement-summary" id="achievement-summary">Twoje postępy pojawią się tutaj.</p>
+            <div id="achievement-list" class="achievement-list"></div>
+        </div>
+    </div>
+
+    <!-- Modal Końca Gry / Dnia --> 
+    <div id="overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-desc"> 
+        <div class="modal-card"> 
+            <h2 id="modal-title">Witaj na praktykach!</h2> 
+            <p id="modal-desc">Twój cel: Przepracować 14 dni, dbać o zasoby i utrzymać co najmniej 70% reputacji u szefa. Pamiętaj: kawa daje energię, ale zabiera skupienie. Unikaj wypalenia (spadku energii i skupienia na koniec dnia do zera)!</p> 
+            <button class="btn" id="modal-btn" style="width: 100%; padding: 14px; font-size: 16px;" onclick="closeModal()">Rozpocznij pracę</button> 
+        </div> 
+    </div> 
+
+    <script> 
+        let day = 1; 
+        let focus = 100; 
+        let energy = 100; 
+        let rep = 50; 
+        let modalCloseTimer = null;
+        
+        let coffeeDrunkToday = 0; 
+        let foosballPlayedToday = false;
+        let musicListenedToday = false;
+        let stackSearchesToday = 0;
+        let helpedCoworkerToday = false;
+        let bugFixes = 0;
+        let correctTickets = 0;
+        let carefulReviews = 0;
+        let coworkerHelps = 0;
+        let maxCoffeesInDay = 0;
+
+        const achievements = [
+            { id: 'first-day', icon: '🌱', title: 'Pierwszy dzień za Tobą', desc: 'Przepracuj pierwszy dzień stażu.', check: () => day >= 2 },
+            { id: 'week-one', icon: '📅', title: 'Tydzień w korpo', desc: 'Dotrwaj do 8. dnia pracy.', check: () => day >= 8 },
+            { id: 'survivor', icon: '🎓', title: 'Staż zaliczony', desc: 'Przetrwaj pełne 14 dni.', check: () => day > 14 },
+            { id: 'bug-hunter', icon: '🐛', title: 'Łowca błędów', desc: 'Napraw poprawnie 3 błędy.', check: () => bugFixes >= 3 },
+            { id: 'triage-pro', icon: '📋', title: 'Mistrz triage', desc: 'Poprawnie sklasyfikuj 3 zgłoszenia.', check: () => correctTickets >= 3 },
+            { id: 'reviewer', icon: '🔍', title: 'Oko do kodu', desc: 'Przeprowadź dokładne code review.', check: () => carefulReviews >= 1 },
+            { id: 'team-player', icon: '🤝', title: 'Dobry kolega', desc: 'Pomóż współpracownikom 3 razy.', check: () => coworkerHelps >= 3 },
+            { id: 'coffee-pro', icon: '☕', title: 'Kawowy maratończyk', desc: 'Wypij 3 kawy jednego dnia.', check: () => maxCoffeesInDay >= 3 },
+            { id: 'high-rep', icon: '⭐', title: 'Ulubieniec zespołu', desc: 'Utrzymaj co najmniej 70% reputacji w 7. dniu.', check: () => day >= 7 && rep >= 70 }
+        ];
+
+        const standupData = [ 
+            { 
+                q: "Szef patrzy na Ciebie wyczekująco: 'I jak tam Twój moduł logowania?'", 
+                options: [ 
+                    { t: "Kod jest gotowy, robię refaktor i piszę testy unitowe.", focus: -15, rep: 10, text: "Szef kiwa głową z uznaniem." }, 
+                    { t: "Coś tam klikałem, ale StackOverflow dzisiaj nie działał...", focus: 0, rep: -15, text: "Zapadła niezręczna cisza..." }, 
+                    { t: "Oglądałem prezentację o nowym AI do robienia kawy.", focus: 0, rep: -5, text: "Zespół się śmieje, ale szef marszczy brwi." } 
+                ] 
+            }, 
+            { 
+                q: "Junior Dev pyta: 'Pomoże mi ktoś ze skomplikowanym query w SQL?'", 
+                options: [ 
+                    { t: "Mogę usiąść z Tobą na 15 minut i spróbować pomóc.", focus: -20, rep: 15, text: "Podejście zespołowe! Reputacja w górę." }, 
+                    { t: "Użyj 'SELECT * FROM tablica' i zobacz co będzie.", focus: -5, rep: -10, text: "Baza danych padła na 10 minut..." }, 
+                    { t: "Udaję, że nagle dostałem pilnego maila od klienta.", focus: 0, rep: 0, text: "Udało się uniknąć dodatkowej pracy." } 
+                ] 
+            }, 
+            { 
+                q: "Project Manager wchodzi do pokoju: 'Klient chce zmienić kolor przycisku na różowy, TERAZ!'", 
+                options: [ 
+                    { t: "Stwórzmy zgłoszenie w Jierze, wycenimy to i wrzucimy w sprint.", focus: -10, rep: 10, text: "Brzmisz jak prawdziwy senior korpo-IT!" }, 
+                    { t: "Robię to od razu w kodzie na produkcji!", focus: -15, rep: -20, text: "Zepsułeś serwer produkcyjny przy okazji!" } 
+                ] 
+            },
+            {
+                q: "HR prosi wszystkich o wypełnienie ankiety o satysfakcji z pracy.",
+                options: [
+                    { t: "Wypełniam rzetelnie i piszę, co można poprawić.", focus: -20, rep: 5, text: "HR dziękuje za feedback. Szef to widzi." },
+                    { t: "Wszędzie zaznaczam 5/5 żeby mieć to z głowy.", focus: -5, rep: 0, text: "Nikogo to nie obchodzi, ale masz to z głowy." },
+                    { t: "Ignoruję maila. Nie mam na to czasu.", focus: 0, rep: -10, text: "HR wysyła przypomnienie z kopią do Twojego menedżera." }
+                ]
+            }
+        ]; 
+
+        const bugData = [ 
+            { code: "function calculateTax(amount) {\n   return amount * 'dwadzieścia';\n}", correct: 0, options: [ "return amount * 0.20;", "return amount * 'dwadzieścia';", "return amount * null;" ] }, 
+            { code: "let users = ['Anna', 'Piotr'];\nif (users.length = 0) {\n   console.log('Brak użytkowników');\n}", correct: 0, options: [ "if (users.length === 0)", "if (users.length = 0)", "if (users == 'brak')" ] }, 
+            { code: "const isWeekend = true;\nif (isWeekend) {\n   goToWork();\n}", correct: 0, options: [ "if (!isWeekend) { goToWork(); }", "if (isWeekend) { playGames(); }", "Zostawić bez zmian." ] },
+            { code: "for(let i=0; i<10; i--) {\n   console.log('Ładowanie...');\n}", correct: 2, options: [ "for(let i=0; i<10; i*2)", "for(let i=10; i<0; i++)", "for(let i=0; i<10; i++)" ] }
+        ]; 
+
+        const ticketData = [ 
+            { text: "PRZYCISK 'KUP TERAZ' NIE DZIAŁA NA PRODUKCJI! KLIENTOM ZNIKA ZAMÓWIENIE!", correct: 'CRITICAL' }, 
+            { text: "Literówka w regulaminie w sekcji 14.b (zamienione 'oraz' na 'ora')", correct: 'LOW' }, 
+            { text: "Aplikacja ładuje się o 1.5 sekundy wolniej w przeglądarce Safari", correct: 'NORMAL' }, 
+            { text: "Pojawił się błąd 500 przy próbie logowania dla 80% użytkowników!", correct: 'CRITICAL' },
+            { text: "Dodanie nowej ikony na stronie O Nas (ikona już zaprojektowana w Figma)", correct: 'LOW' },
+            { text: "Certyfikat SSL wygasa za 2 dni, strona przestanie być bezpieczna", correct: 'CRITICAL' }
+        ]; 
+
+        let currentTicket = -1;
+        let gameOver = false; 
+
+        function updateUI() { 
+            focus = Math.max(0, Math.min(100, focus)); 
+            energy = Math.max(0, Math.min(100, energy)); 
+            rep = Math.max(0, Math.min(100, rep)); 
+
+            document.getElementById('day-counter').innerText = day; 
+            document.getElementById('focus-bar').style.width = focus + '%'; 
+            document.getElementById('energy-bar').style.width = energy + '%'; 
+            document.getElementById('rep-bar').style.width = rep + '%';
+            document.getElementById('focus-value').textContent = Math.round(focus) + '%';
+            document.getElementById('energy-value').textContent = Math.round(energy) + '%';
+            document.getElementById('rep-value').textContent = Math.round(rep) + '%'; 
+
+            document.getElementById('focus-bar').style.background = focus < 20 ? 'linear-gradient(90deg, #dc2626, #ef4444)' : 'linear-gradient(90deg, #2563eb, #3b82f6)';
+            document.getElementById('energy-bar').style.background = energy < 20 ? 'linear-gradient(90deg, #dc2626, #ef4444)' : 'linear-gradient(90deg, #ca8a04, #eab308)';
+            document.getElementById('rep-bar').style.background = rep < 30 ? 'linear-gradient(90deg, #dc2626, #ef4444)' : 'linear-gradient(90deg, #16a34a, #22c55e)';
+
+            checkGameOver(); 
+        } 
+
+        function openWindow(id) { 
+            closeAllWindows(); 
+            if (id === 'window-standup') setupStandup(); 
+            if (id === 'window-bugs') setupBug(); 
+            if (id === 'window-tickets') setupTicket(); 
+            if (id === 'window-achievements') renderAchievements();
+            document.getElementById(id).classList.add('active'); 
+        } 
+
+        function renderAchievements() {
+            const list = document.getElementById('achievement-list');
+            const unlocked = achievements.filter(item => item.check()).length;
+            document.getElementById('achievement-summary').textContent = `Odblokowano ${unlocked} z ${achievements.length} osiągnięć. Graj dalej, aby zdobyć pozostałe.`;
+            list.innerHTML = '';
+            achievements.forEach(item => {
+                const isUnlocked = item.check();
+                const card = document.createElement('article');
+                card.className = `achievement-card${isUnlocked ? ' unlocked' : ''}`;
+                const title = document.createElement('h3');
+                title.textContent = `${item.icon} ${item.title}`;
+                const desc = document.createElement('p');
+                desc.textContent = item.desc;
+                const status = document.createElement('span');
+                status.className = 'achievement-status';
+                status.textContent = isUnlocked ? '✓ Zdobyte' : '🔒 Jeszcze do zdobycia';
+                card.append(title, desc, status);
+                list.appendChild(card);
+            });
+        }
+
+        function closeWindow(id) { 
+            document.getElementById(id).classList.remove('active'); 
+        } 
+
+        function closeAllWindows() { 
+            document.querySelectorAll('.window').forEach(w => w.classList.remove('active')); 
+        } 
+
+        function showModal(title, desc, btnText = "Kontynuuj") {
+            if (gameOver && btnText !== "Zagraj ponownie" && title !== "ZOSTAŁEŚ ZWOLNIONY! 🚫") return;
+            clearTimeout(modalCloseTimer);
+            document.getElementById('modal-title').innerText = title; 
+            document.getElementById('modal-desc').innerText = desc; 
+            const btn = document.getElementById('modal-btn');
+            btn.innerText = btnText; 
+            
+            if(btnText === "Zagraj ponownie") {
+                btn.onclick = () => location.reload();
+            } else {
+                btn.onclick = closeModal;
+            }
+            
+            const overlay = document.getElementById('overlay');
+            overlay.style.display = 'flex'; 
+            document.getElementById('top-bar').setAttribute('inert', '');
+            document.getElementById('desktop').setAttribute('inert', '');
+            requestAnimationFrame(() => btn.focus());
+            setTimeout(() => { overlay.style.opacity = '1'; }, 10);
+        } 
+
+        function closeModal() { 
+            const overlay = document.getElementById('overlay');
+            overlay.style.opacity = '0';
+            clearTimeout(modalCloseTimer);
+            modalCloseTimer = setTimeout(() => {
+                overlay.style.display = 'none';
+                document.getElementById('top-bar').removeAttribute('inert');
+                document.getElementById('desktop').removeAttribute('inert');
+            }, 300);
+            updateUI(); 
+        } 
+
+        function setupStandup() { 
+            const data = standupData[Math.floor(Math.random() * standupData.length)]; 
+            document.getElementById('standup-prompt').innerText = data.q; 
+            const container = document.getElementById('standup-options'); 
+            container.innerHTML = ''; 
+
+            data.options.forEach(opt => { 
+                const btn = document.createElement('button'); 
+                btn.className = 'option-btn'; 
+                btn.innerText = opt.t; 
+                btn.onclick = () => { 
+                    if (focus < Math.abs(opt.focus)) { 
+                        showModal("Brak skupienia!", "Jesteś zbyt zdekoncentrowany na tę rozmowę. Użyj słuchawek lub napij się kawy."); 
+                        return; 
+                    } 
+                    focus += opt.focus; rep += opt.rep; energy -= 10; 
+                    updateUI(); closeAllWindows(); showModal("Wynik rozmowy", opt.text); 
+                }; 
+                container.appendChild(btn); 
+            }); 
+        } 
+
+        function setupBug() { 
+            const b = bugData[Math.floor(Math.random() * bugData.length)]; 
+            document.getElementById('bug-code').innerText = b.code; 
+            const container = document.getElementById('bug-options'); 
+            container.innerHTML = ''; 
+
+            b.options.forEach((optText, index) => { 
+                const btn = document.createElement('button'); 
+                btn.className = 'option-btn'; btn.innerText = optText; 
+                btn.onclick = () => { 
+                    if (energy < 15 || focus < 15) { showModal("Brak zasobów!", "Brakuje Ci energii lub skupienia do czytania kodu. Zregeneruj siły!"); return; } 
+                    energy -= 15; focus -= 15; 
+                     
+                    if (index === b.correct) { 
+                        rep += 10; bugFixes++; showModal("Sukces!", "Bug naprawiony! Kod przeszedł code review. (+10 Reputacji)"); 
+                    } else { 
+                        rep -= 10; showModal("Błąd!", "Twój 'fix' zepsuł środowisko testowe. QA jest na Ciebie złe. (-10 Reputacji)"); 
+                    } 
+                    updateUI(); closeAllWindows(); 
+                }; 
+                container.appendChild(btn); 
+            }); 
+        } 
+
+        function setupTicket() { 
+            currentTicket = Math.floor(Math.random() * ticketData.length); 
+            document.getElementById('ticket-text').innerText = ticketData[currentTicket].text; 
+        } 
+
+        function resolveTicket(priority) { 
+            if (focus < 10 || energy < 10) { showModal("Brak zasobów!", "Nie możesz się skoncentrować na czytaniu wymagań. Odpocznij."); return; } 
+            focus -= 10; energy -= 10;
+            const t = ticketData[currentTicket]; 
+            if (priority === t.correct) { 
+                rep += 10; correctTickets++; showModal("Dobry triage!", "Poprawnie przypisałeś priorytet zgłoszenia. Scrum Master daje łapkę w górę na Slacku. (+10 Reputacji)"); 
+            } else { 
+                rep -= 10; showModal("Pomyłka!", "Zła klasyfikacja. Pominąłeś ważny błąd albo dałeś literówce status krytyczny. Zespół stracił czas. (-10 Reputacji)"); 
+            } 
+            updateUI(); closeAllWindows(); 
+        } 
+
+        // Nowa Funkcja: GitHub Code Review
+        function doCodeReview(action) {
+            if (gameOver) return;
+            if (action === 'approve' && (focus < 5 || energy < 10)) { showModal("Brak zasobów", "Nawet szybkie zatwierdzenie wymaga chwili uwagi. Odzyskaj energię i skupienie."); return; }
+            if (action === 'read' && focus < 25) { showModal("Brak skupienia!", "Litery zlewają Ci się w jedną całość. Nie dasz rady tego precyzyjnie przeczytać."); return; }
+            if (action === 'reject' && energy < 15) { showModal("Brak energii!", "Nie masz siły wymyślać argumentów i kłócić się z seniorem w komentarzach."); return; }
+
+            closeAllWindows();
+            let rand = Math.random();
+
+            if (action === 'approve') {
+                focus -= 5; energy -= 10;
+                if (rand > 0.6) {
+                    rep -= 15; focus -= 10;
+                    showModal("Katastrofa! 🔥", "Zatwierdziłeś PR, który wywalił bazę danych na produkcji! Senior zwalił winę na Ciebie, bo 'przecież zatwierdziłeś'. (-15 Reputacji)");
+                } else {
+                    focus += 5; energy -= 5;
+                    showModal("Uff... 😅", "Zatwierdziłeś w ciemno (LGTM). Na szczęście kod działał. Nic się nie stało, a Ty poszedłeś dalej.");
+                }
+            } else if (action === 'read') {
+                focus -= 25; energy -= 10;
+                carefulReviews++;
+                if (rand > 0.4) {
+                    rep += 15;
+                    showModal("Świetna robota! 🕵️‍♂️", "Znalazłeś ukrytego buga w kodzie Seniora! Cały zespół jest pod wrażeniem Twojej spostrzegawczości. (+15 Reputacji)");
+                } else {
+                    rep += 5;
+                    showModal("Solidne review 👍", "Kod był w porządku, ale doceniono Twoje dbanie o formatowanie i konwencje. (+5 Reputacji)");
+                }
+            } else if (action === 'reject') {
+                energy -= 15; focus -= 5;
+                if (rand > 0.5) {
+                    rep += 10; focus += 15;
+                    showModal("Trafna uwaga! 🎯", "Senior przyznał Ci rację – zapomniał obsłużyć brzegowego przypadku w testach. Dobra robota! (+10 Reputacji, +15 Skupienia z satysfakcji)");
+                } else {
+                    rep -= 10;
+                    showModal("Ego urażone 😠", "Odrzuciłeś idealny kod, bo nie zrozumiałeś wzorca projektowego. Senior tłumaczył Ci to publicznie na Slacku przez godzinę. (-10 Reputacji)");
+                }
+            }
+            updateUI();
+        }
+
+        function searchWeb() {
+            if (energy < 20) { showModal("Brak energii", "Nawet na scrollowanie forów potrzebujesz siły. Wypij kawę!"); return; }
+            if (stackSearchesToday >= 2) { showModal("Limit szukania", "Zbyt dużo czasu spędziłeś dziś na forach. Szef zaczyna na Ciebie patrzeć..."); return; }
+            
+            energy -= 20; stackSearchesToday++; closeAllWindows();
+
+            const outcomes = [
+                { title: "Znalazłeś gotowca!", desc: "Ktoś miał ten sam problem 5 lat temu. Kopiuj-wklej i działa! (+25 Skupienia, +5 Reputacji)", f: 25, r: 5 },
+                { title: "Oznaczono jako duplikat", desc: "Twój post został zamknięty bez odpowiedzi. Straciłeś tylko czas. (-10 Skupienia)", f: -10, r: 0 },
+                { title: "Drama w komentarzach", desc: "Zamiast rozwiązania znalazłeś kłótnię o to, czy lepszy jest React czy Angular. Wciągnąłeś się. (-20 Skupienia, -10 Energii)", f: -20, r: 0, e: -10 },
+                { title: "Hinduski YouTuber ratuje dzień", desc: "Znalazłeś 3-minutowy film z perfekcyjnym rozwiązaniem. Jesteś bogiem kodu! (+40 Skupienia, +10 Reputacji)", f: 40, r: 10 }
+            ];
+
+            const result = outcomes[Math.floor(Math.random() * outcomes.length)];
+            focus += result.f; rep += result.r; if(result.e) energy += result.e;
+            
+            updateUI(); showModal(result.title, result.desc);
+        }
+
+        function playFoosball() {
+            if(foosballPlayedToday) { showModal("Szef patrzy...", "Byłeś już dzisiaj na piłkarzykach. Wracaj do pisania kodu!"); return; }
+            if(energy < 20) { showModal("Brak sił", "Jesteś zbyt wyczerpany na sport. Przegrałbyś do zera."); return; }
+
+            energy -= 20; focus += 40; foosballPlayedToday = true;
+
+            const repGain = Math.random() > 0.4 ? 5 : -5;
+            rep += repGain;
+
+            let msg = repGain > 0 
+                ? "Strzeliłeś kilka ładnych bramek, Seniorzy są pod wrażeniem. (+40 Skupienia, +5 Reputacji)" 
+                : "Strzeliłeś samobója podczas meczu z CEO... Wszyscy udają, że nic się nie stało. (+40 Skupienia, ale -5 Reputacji)";
+
+            updateUI(); showModal("Mecz Piłkarzyków ⚽", msg);
+        }
+
+        // Nowa Funkcja: Słuchanie muzyki
+        function listenToMusic() {
+            if (musicListenedToday) {
+                showModal("Bolą Cię uszy", "Słuchałeś już dzisiaj sporo muzyki. Zdejmij słuchawki i posłuchaj trochę biurowego szumu.");
+                return;
+            }
+            musicListenedToday = true;
+            focus += 35;
+            energy -= 10;
+            updateUI();
+            showModal("Lofi Hip Hop Radio 🎧", "Bity do nauki i relaksu pomogły Ci się odciąć od świata. Skupienie +35, ale robisz się lekko senny (Energia -10).");
+        }
+
+        function helpCoworker() {
+            if (helpedCoworkerToday) { showModal("Już pomogłeś dziś zespołowi", "Dobra współpraca jest ważna, ale pamiętaj też o własnych zadaniach."); return; }
+            if (energy < 10 || focus < 10) { showModal("Brak sił", "Najpierw odzyskaj trochę energii i skupienia, zanim pomożesz koledze."); return; }
+            helpedCoworkerToday = true;
+            coworkerHelps++;
+            energy -= 10;
+            focus -= 10;
+            rep += 8;
+            updateUI();
+            showModal("Dobra robota zespołowa! 🤝", "Pomogłeś koledze rozwiązać problem. Reputacja +8, energia -10, skupienie -10.");
+        }
+
+        function drinkCoffee() { 
+            if (coffeeDrunkToday >= 3) { 
+                showModal("Przedawkowanie!", "Twój żołądek mówi 'NIE'. Serce bije za szybko, a ręce Ci się trzęsą. Tracisz skupienie!"); 
+                if (!coffeeOverdoseToday) { focus -= 20; coffeeOverdoseToday = true; updateUI(); }
+                return; 
+            } 
+            coffeeDrunkToday++; maxCoffeesInDay = Math.max(maxCoffeesInDay, coffeeDrunkToday); energy += 30; focus -= 10; 
+            updateUI(); 
+            showModal("Kawa z ekspresu ☕", `Pijesz firmową kawę. Energia +30, ale skupienie leci w dół! (Wypito dzisiaj: ${coffeeDrunkToday}/3)`); 
+        } 
+
+        function endDay() {
+            if (gameOver) return;
+            rep -= 10;
+            // Mechanika Wypalenia (Burnout)
+            let burnoutPenalty = 0;
+            if (focus < 10 || energy < 10) {
+                burnoutPenalty = 10;
+                rep -= burnoutPenalty;
+            }
+
+            updateUI();
+            if (gameOver) return;
+            day++; 
+            if (day > 14) { 
+                gameOver = true;
+                if (rep >= 70) { showModal("SUKCES! 🎉", "Przetrwałeś 14 dni! Szef wręcza Ci umowę o pracę na czas nieokreślony, firmową bluzę i naklejki na laptopa. Gratulacje!", "Zagraj ponownie"); } 
+                else { showModal("KONIEC UMOWY 📄", `Przetrwałeś, ale Twoja reputacja (${rep}%) była zbyt niska. Szef powiedział: 'Szukamy kogoś z większym entuzjazmem'.`, "Zagraj ponownie"); } 
+                return;
+            } 
+
+            focus = 100; energy = 100; coffeeDrunkToday = 0; coffeeOverdoseToday = false; foosballPlayedToday = false; stackSearchesToday = 0; musicListenedToday = false; helpedCoworkerToday = false;
+            updateUI();
+
+            let rand = Math.random();
+            let msgTitle = `Dzień ${day}`;
+            let msgBody = "Rozpoczynasz nowy dzień w pracy. Zaloguj się do systemów i spróbuj dotrwać do 17:00! Reputacja spadła o 10 punktów za kolejny dzień stażu.";
+
+            if (burnoutPenalty > 0) {
+                msgBody = `Przyszedłeś do pracy totalnie wyczerpany po wczorajszym dniu. Szef zauważył, że ledwo trzymasz się na nogach. (-${burnoutPenalty} Reputacji)\n\n` + msgBody;
+            }
+
+            if (day % 4 === 0) { 
+                rep += 5;
+                updateUI();
+                showModal(`${msgTitle} - Owocowy Czwartek! 🍌`, "W kuchni pojawiły się banany i jabłka! Odzyskujesz wiarę w korporację. Reputacja +5 (po dziennym spadku -10), zasoby na 100%.\n\n" + (burnoutPenalty ? "Choć wyglądasz jak wampir." : ""));
+            } else if (rand > 0.8) { 
+                focus -= 20; energy -= 20;
+                updateUI();
+                showModal(`${msgTitle} - Awaria Produkcji! 🔥`, "Od rana wszystko płonie! Zanim zdążyłeś usiąść, musieliście gasić pożary na serwerze. Tracisz trochę energii i skupienia na start. Reputacja spadła o 10 punktów za kolejny dzień stażu.");
+            } else if (rand < 0.1) {
+                energy -= 30;
+                updateUI();
+                showModal(`${msgTitle} - Zepsuty Ekspres! 😱`, "Ekspres do kawy jest w serwisie. Całe biuro chodzi nerwowe, a Ty masz od razu mniej energii na start. Reputacja spadła o 10 punktów za kolejny dzień stażu.");
+            } else {
+                showModal(msgTitle, msgBody); 
+            }
+        } 
+
+        function checkGameOver() {
+            if (rep <= 0 && !gameOver) {
+                gameOver = true;
+                showModal("ZOSTAŁEŚ ZWOLNIONY! 🚫", "Twoja reputacja spadła do zera po serii fatalnych błędów. Ochrona wyprowadza Cię z biura, a HR prosi o zwrot laptopa.", "Zagraj ponownie");
+            }
+        } 
+
+        updateUI(); 
+        let coffeeOverdoseToday = false;
+        document.getElementById('top-bar').setAttribute('inert', '');
+        document.getElementById('desktop').setAttribute('inert', '');
+        requestAnimationFrame(() => document.getElementById('modal-btn').focus());
+        document.querySelectorAll('.icon[role="button"]').forEach(icon => icon.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); icon.click(); }
+        }));
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape') closeAllWindows();
+        });
+    </script></body></html>
+
+
+
+
+
